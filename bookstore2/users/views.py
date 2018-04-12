@@ -1,15 +1,24 @@
+from django.core.mail import send_mail
 from django.shortcuts import render,redirect
 from django.core.urlresolvers import reverse
+from django_redis import get_redis_connection
+
+from books.models import Books
 from users.models import Passport,Address
-from django.http import JsonResponse
+from django.http import JsonResponse,HttpResponse
 import re
 from utils.decorators import login_required
+from order.models import OrderInfo,OrderGoods
+from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
+from itsdangerous import SignatureExpired
+from django.conf import settings
 # Create your views here.
-
+from users.tasks import send_active_email
 
 def register(request):
 
     return render(request,'users/register.html')
+
 
 def register_handle(request):
 
@@ -20,13 +29,25 @@ def register_handle(request):
     if not all([username,password,email]):
 
         return render(request,'users/register.html',{'errmsg':'参数不能为空！'})
+
     if not re.match(r'^[0-9a-z][\w\.\-]*@[a-z0-9\-]+(\.[a-z]{2,5}){1,2}',email):
         return render(request,'users/register.html',{'errmsg':'邮箱格式不合法！'})
+
+
     try:
         user = Passport.objects.get(username=username)
         return render(request, 'users/register.html', {'errmsg': '用户名已被注册！'})
     except Exception as e:
         passport = Passport.objects.add_one_passport(username=username, password=password, email=email)
+
+        #生成激活的token itsdangerous
+        serializer = Serializer(settings.SECRET_KEY,3600)
+        token = serializer.dumps({'confirm':passport.id})
+        token = token.decode()
+        send_active_email(token,username,email)
+        # 给用户的邮箱发激活邮件
+        # send_mail('尚硅谷书城用户激活','',settings.EMAIL_FROM,[email],html_message='<a href="http://127.0.0.1:8000/user/active/%s/">http://127.0.0.1:8000/user/active/</a>' % token)
+
         return redirect(reverse('books:index'))
 
 def login(request):
@@ -39,11 +60,19 @@ def login_check(request):
     username = request.POST.get('username')
     password = request.POST.get('password')
     remember = request.POST.get('remember')
+    verifycode = request.POST.get('verifycode')
 
     #2.数据校验
     print('11111111111111',username,password,remember)
-    if not all([username,password,remember]):
-        return JsonResponse({'res':2})
+    if not all([username,password,remember,verifycode]):
+        print('nihao')
+        next_url = reverse('users:login')
+        return JsonResponse({'res':2,'next_url':next_url})
+
+    if verifycode.upper() != request.session['verifycode']:
+        print('nwwwwao')
+        next_url= reverse('users:login')
+        return JsonResponse({'res':2,'next_url':next_url})
 
     #3.进行处理：根据用户名和密码查找账户信息
     passport = Passport.objects.get_one_passport(username=username,password=password)
@@ -72,11 +101,13 @@ def login_check(request):
         # 用户名或者密码错误
         return JsonResponse({'res':0})
 
+
 def logout(request):
     '''用户退出登录'''
     #  清空用户的session信息
-    print('55555555555555')
     request.session.flush()
+    # conn = get_redis_connection('default')
+    # conn.flushall()
     # 跳转到首页
     return redirect(reverse('books:index'))
 
@@ -87,7 +118,20 @@ def user(request):
     # 获取用户的基本信息
     addr = Address.objects.get_default_address(passport_id=passport_id)
 
+    # 获取用户的最近浏览信息
+    con = get_redis_connection('default')
+    key = 'history_%d' % passport_id
+    # 取出用户最近浏览的5个商品的id
+    history_li = con.lrange(key, 0, 4)
+    # history_li = [21,20,11]
+    # print(history_li)
+    # 查询数据库,获取用户最近浏览的商品信息
+    # books_li = Books.objects.filter(id__in=history_li)
+
     books_li = []
+    for id in history_li:
+        books = Books.objects.get_books_by_id(books_id=id)
+        books_li.append(books)
 
     context = {
         'addr': addr,
@@ -95,3 +139,141 @@ def user(request):
         'books_li':books_li
     }
     return render(request,'users/user_center_info.html',context)
+
+
+@login_required
+def address(request):
+    '''用户中心—地址页'''
+    # 获取登录用户的id
+    passport_id = request.session.get('passport_id')
+    if request.method == "GET":
+        # 显示地址页面
+        # 查询用户的默认地址
+        addr = Address.objects.get_default_address(passport_id=passport_id)
+        return render(request, 'users/user_center_site.html', {'addr': addr, 'page': 'address'})
+    else:
+        # 添加收货地址
+        # 1.接收数据
+        recipient_name = request.POST.get('username')
+        recipient_addr = request.POST.get('addr')
+        zip_code = request.POST.get('zip_code')
+        recipient_phone = request.POST.get('phone')
+
+        # 2.进行校验
+        if not all([recipient_addr, recipient_name, recipient_phone, zip_code]):
+            return render(request, 'users/user_center_site.html', {'errmsg': '参数不完整'})
+
+        # 3.添加收货地址
+        Address.objects.add_one_address(passport_id=passport_id,
+                                        recipient_name=recipient_name,
+                                        recipient_addr=recipient_addr,
+                                        recipient_phone=recipient_phone,
+                                        zip_code=zip_code
+                                        )
+        # 4.返回应答
+        return redirect(reverse('users:address'))
+
+@login_required
+def order(request):
+    '''用户中心-订单页'''
+    # 查询用户的订单信息
+    passport_id = request.session.get('passport_id')
+
+    # 获取订单信息
+    order_li = OrderInfo.objects.filter(passport_id=passport_id)
+
+    # 遍历获取订单的商品信息
+    # orde ->OrderInfo实例信息
+    for order in order_li:
+        # 根据订单id查询订单商品信息
+        order_id = order.order_id
+        order_books_li = OrderGoods.objects.filter(order_id=order_id)
+
+        # 计算商品的小计
+        # order_books ->OrderGoods实例对象
+        for order_book in order_books_li:
+            count = order_book.count
+            price = order_book.price
+            amount = count * price
+            # 保存订单中每一个商品的小计
+            order_book.amount = amount
+
+        # 给order对象动态增加一个属性order_books_li,保存订单中商品的信息
+        order.order_books_li = order_books_li
+
+    context = {
+        'order_li':order_li,
+    }
+    return render(request,'users/user_center_order.html',context)
+
+
+def verifycode(request):
+    # 引入绘图模块
+    from PIL import Image,ImageDraw,ImageFont
+    # 引入随机函数模块
+    import random
+    # d定义变量，用于画面的背景色、宽、高
+    bgcolor = (random.randrange(20,100),random.randrange(20,100),255)
+    print('2222222222',bgcolor)
+    width = 100
+    height = 25
+    # 创建画面对象
+    im = Image.new('RGB',(width,height),bgcolor)
+    print('1111111111111',im)
+    # 创建画笔对象
+    draw = ImageDraw.Draw(im)
+    # 调用画笔的point()函数绘制噪点
+    for i in range(0,100):
+        xy =(random.randrange(0,width),random.randrange(0,height))
+        fill = (random.randrange(0,255),255,random.randrange(0,255))
+        draw.point(xy,fill=fill)
+        # 定义验证码的备选值
+    str1 = 'ABCD123EFGHIJK456LMNOPQRS789TUVWXYZ0'
+    # 随机选取4个值作为验证码
+    rand_str = ''
+    for i in range(0,4):
+        rand_str += str1[random.randrange(0,len(str1))]
+    # 构造字体对象
+    font = ImageFont.truetype("/usr/share/fonts/truetype/ubuntu-font-family/Ubuntu-LI.ttf",15)
+    # 构造字体颜色
+    fontcolor = (255,random.randrange(0,255),random.randrange(0,255))
+    # 绘制4个字
+    draw.text((5,2),rand_str[0],font=font,fill=fontcolor)
+    draw.text((25,2),rand_str[1],font=font,fill=fontcolor)
+    draw.text((50,2),rand_str[2],font=font,fill=fontcolor)
+    draw.text((75,2),rand_str[3],font=font,fill=fontcolor)
+
+    # 释放画笔
+    del draw
+    # 存入session,用与进一步验证
+    request.session['verifycode'] = rand_str
+    print('33333',rand_str)
+    # 内存文件操作
+    import io
+    buf = io.BytesIO()
+    # 将图片保存在内存中，文件类型为png
+    im.save(buf,'png')
+    print('444444',buf.getvalue())
+    # 将内存中的图片数据返回给客户端，MIME类型为图片png
+    return HttpResponse(buf.getvalue(),'image/png')
+
+
+def register_active(request,token):
+    '''用户账号激活'''
+    serializer = Serializer(settings.SECRET_KEY,3600)
+    try:
+        info = serializer.loads(token)
+        passport_id = info['confirm']
+        # 进行用户激活
+        passport = Passport.objects.get(id=passport_id)
+        passport.is_active = True
+        passport.save()
+        # 跳转的登录页
+        return redirect(reverse('users:login'))
+    except SignatureExpired:
+        # 链接过期
+        return HttpResponse('激活链接已过期')
+
+
+
+

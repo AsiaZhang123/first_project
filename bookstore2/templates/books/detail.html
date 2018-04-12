@@ -3,7 +3,22 @@
 {% block title %}尚硅谷书店-首页{% endblock title %}
 {% block body %}
 <body>
-
+    <style type="text/css">
+        .comment{
+            background-color: #c40000;
+            color: #fff;
+            margin-left: 10px;
+            position: relative;
+            z-index: 10;
+            display: inline-block;
+            width: 178px;
+            height: 38px;
+            border: 1px solid #c40000;
+            font-size: 14px;
+            line-height: 38px;
+            text-align: center;
+        }
+    </style>
 	<div class="navbar_con">
 		<div class="navbar clearfix">
 			<div class="subnav_con fl">
@@ -44,7 +59,7 @@
 			<p>{{ book.desc }}</p>
 			<div class="prize_bar">
 				<span class="show_pirze">¥<em>{{ book.price }}</em></span>
-				<span class="show_unit">单  位：{{ book.units }}</span>
+				<span class="show_unit">单  位：{{ book.unite }}</span>
 			</div>
 			<div class="book_num clearfix">
 				<div class="num_name fl">数 量：</div>
@@ -59,7 +74,18 @@
                 {% csrf_token %}
 				<a href="javascript:;" class="buy_btn">立即购买</a>
 				<a href="javascript:;" books_id="{{ book.id }}" class="add_cart" id="add_cart">加入购物车</a>
-			</div>
+                <a href="#" id="write-comment" class="comment">我要写评论</a>
+            </div>
+            <div style="display:flex;" id="comment-input" data-bookid="{{ books.id }}" data-userid="{{ request.session.passport_id }}">
+                <div>
+                    <input type="text" placeholder="评论内容">
+                    <div id="submit-comment">
+                        <button>
+                            提交评论
+                        </button>
+                    </div>
+                </div>
+            </div>
 		</div>
 	</div>
 
@@ -199,6 +225,62 @@
                 $('.num_show').val(parseInt(books_count));
                 //计算总价
                 update_total_price()
+            });
+            $.ajax({
+                url:'/comment/comment/' +$('#comment-input').data('bookid'),
+                success:function (res) {
+                    if (res.code === 200){
+                        var data = res.data;
+                        console.log(data);
+                        var div_head = '<div>';
+                        var div_tail = '</div>';
+                        var dom_element = '';
+                        for(i = 0;i < data.length;i++){
+                            var head = '<div>';
+                            var tail = '</div>';
+                            var temp = head +'<span>' + data[i].user_id + '</span>'
+                            dom_element += temp;
+                        }
+                        dom_element = div_head + dom_element + div_tail;
+                        $('#book_comment').append(dom_element);
+                    }
+                }
+            });
+            $('#detail').click(function () {
+                $(this).addClass('active');
+                $('#comment').removeClass('active');
+                $('#book_comment').hide();
+                $('#book_detail').show();
+            });
+            $('#comment').click(function () {
+                $(this).addClass('active');
+                $('#detail').removeClass('active');
+                $('#book_comment').show();
+                $('#book_detail').hide();
+            });
+            $('#write-comment').click(function () {
+                $('#comment-input').show();
+            });
+            $('#submit-comment').click(function () {
+                var book_id = $('#comment-input').data('bookid');
+                var user_id = $('#comment-input').data('userid');
+                var content = $('#comment-input input').val();
+                var data ={
+                    book_id:book_id,
+                    user_id:user_id,
+                    content:content
+                };
+                $.ajax({
+                    type:'POST',
+                    url:'/comment/comment/' + book_id +'/',
+                    data:JSON.stringify(data),
+                    success:function (res) {
+                        if (res.code === 200){
+                            $('#comment-input').hide();
+                        }
+                    }
+
+                })
             })
         })
     </script>

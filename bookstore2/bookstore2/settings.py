@@ -42,6 +42,10 @@ INSTALLED_APPS = (
     'books',
     'tinymce',
     'cart',
+    'order',
+    'comments',
+    'haystack',
+    'users.templatetags.filters',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -114,6 +118,7 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR,'static')
 ]
+
 TINTMCE_DEFAULT_CONFIG = {
     'theme':'advanced',
     'width':600,
@@ -135,4 +140,29 @@ CACHES = {
 
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "default"
+
+ALIPAY_URL='https://openapi.alipaydev.com/gateway.do'
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.163.com'
+EMAIL_PORT = 25
+EMAIL_HOST_USER = 'asian_zhang@163.com'
+EMAIL_HOST_PASSWORD = 'dangerous123zyz'
+EMAIL_FROM = 'asian_zhang@163.com'
+
+HAYSTACK_CONNECTIONS ={
+    'default':{
+        #  使用whoosh引擎
+        'ENGINE': 'haystack.backends.whoosh_cn_backend.WhooshEngine',
+        # 'ENGINE': 'haystack.backends.whoosh_backend.WhooshEngine',
+        # 索引文件路径
+        'PATH':os.path.join(BASE_DIR,'whoosh_index'),
+    }
+}
+
+# 当添加、修改、删除数据时，自动生成索引
+HAYSTACK_SIGNAL_PROCESSOR = 'haystack.signals.RealtimeSignalProcessor'
+
+HAYSTACK_SIGNAL_RESULTS_PER_PAGE = 6 # 指定搜索结果每页的条数
+
 

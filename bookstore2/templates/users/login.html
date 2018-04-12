@@ -4,17 +4,23 @@
 {% block topfiles %}
 <script>
     $(function (){
+{#        $('#verifycode').click(function () {#}
+{#            location.href = "/users/verifycode/"#}
+{#        });#}
         $('#btnLogin').click(function (){
             // 获取用户名和密码
             username = $('#username').val();
             password = $('#password').val();
             csrf = $('input[name="csrfmiddlewaretoken"]').val();
             remember =$('input[name="remember"]').prop('checked');
+            vc =$('input[name="vc"]').val();
             params = {
                 'username':username,
                 'password':password,
                 'csrfmiddlewaretoken':csrf,
-                'remember':remember
+                'remember':remember,
+                'verifycode':vc
+
             };
 {#             '/users/login_check/'  "{% url 'users:login_check' %}" #}
             $.post("{% url 'users:login_check' %}",params,function (data){
@@ -22,6 +28,9 @@
                 // 登录成功{‘res':1}
                 if (data.res == 0){
                     $('#username').next().html('用户名密码错误').show()
+                }else if (data.res == 2){
+                    $('#username').next().html('验证码错误').show();
+                    $('#verifycode').src = '/users/verifycode/?a='+Math.random()
                 }else{
                     // 跳转页面
                     location.href = data.next_url
@@ -47,15 +56,19 @@
                 <div class="login_form fr">
                     <div class="login_title clearfix">
                         <h1>用户登录</h1>
-                        <a href="#">立即注册</a>
+                        <a href="{% url 'users:register' %}">立即注册</a>
                     </div>
                     <div class="form_input">
                             {% csrf_token %}
+                            <div style="top:115px;position:absolute;">
+                                <input type="text" id="vc" name="vc" style="width:150px;">
+                                <img id="verifycode" src="/users/verifycode/" onclick="this.src='/users/verifycode/?a='+Math.random()" alt="CheckCode" style="top:2px;left:200px;position: absolute"/>
+                            </div>
                             <input type="text" id="username" name="username" class="name_input" placeholder="请输入用户名">
                             <div class="user_error">输入错误</div>
                             <input type="password" id="password" name="pwd" class="pass_input" placeholder="请输入密码">
                             <div class="pwd_error">输入错误</div>
-                            <div class="more_input clearfix">
+                            <div class="more_input clearfix" style="top:155px;">
                                 <input type="checkbox" name="remember" {{ checked }}>
                                 <label>记住用户名</label>
                                 <a href="#">忘记密码</a>

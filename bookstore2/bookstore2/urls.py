@@ -20,5 +20,8 @@ urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
     url(r'^users/',include('users.urls',namespace='users')),
     url(r'^',include('books.urls',namespace='books')),
-    url(r'^cart/',include('cart.urls',namespace='cart'))
+    url(r'^cart/',include('cart.urls',namespace='cart')),
+    url(r'^order/',include('order.urls',namespace='order')),
+    url(r'^comment/',include('comments.urls',namespace='comment')),
+    url(r'^search/',include('haystack.urls',namespace='search')),
 ]

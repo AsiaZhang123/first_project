@@ -23,9 +23,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = 'h2853e22)a4g&x7*kdf6vp4!ng*lz4w3&x%)%e(ywf)r6bu3!8'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -35,7 +35,6 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
-
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'users',
@@ -90,7 +89,7 @@ DATABASES = {
         'NAME': 'bookstore2',
         'HOST':'localhost',
         'PORT': 3306,
-        'USER': 'zhangyazhou',
+        'USER': 'root',
         'PASSWORD':'dangerous',
     }
 }
@@ -125,7 +124,7 @@ TINTMCE_DEFAULT_CONFIG = {
     'height':400,
 }
 
-MEDIA_ROOT =os.path.join(BASE_DIR,'static')
+MEDIA_ROOT = os.path.join(BASE_DIR,'static')
 
 CACHES = {
     "default":{
@@ -145,7 +144,8 @@ ALIPAY_URL='https://openapi.alipaydev.com/gateway.do'
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.163.com'
-EMAIL_PORT = 25
+EMAIL_PORT = 465
+EMAIL_USE_SSL = True
 EMAIL_HOST_USER = 'asian_zhang@163.com'
 EMAIL_HOST_PASSWORD = 'dangerous123zyz'
 EMAIL_FROM = 'asian_zhang@163.com'

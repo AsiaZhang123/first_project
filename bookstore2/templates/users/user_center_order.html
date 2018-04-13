@@ -60,27 +60,32 @@
     <script>
         $(function () {
             $('.oper_btn').click(function () {
-                //获取订单id和订单的状态
-                order_id = $(this).attr('order_id');
-                order_status =$(this).attr('order_status');
-                csrf = $('input[name="csrfmiddlewaretoken"]').val();
-                params = {'order_id':order_id, 'csrfmiddlewaretoken':csrf};
+                // 获取订单id和订单的状态
+                order_id = $(this).attr('order_id')
+                order_status = $(this).attr('order_status')
+                csrf = $('input[name="csrfmiddlewaretoken"]').val()
+                params = {'order_id':order_id, 'csrfmiddlewaretoken':csrf}
                 if (order_status == 1){
-                    $.post('/order/pay/',params,function (data) {
+                    $.post('/order/pay/', params, function (data) {
                         if (data.res == 3){
                             // 把用户引导支付页面
-                            window.open(data.pay_url);
+                            console.log(data.pay_url)
+{#                            location = data.pay_url#}
+                            window.open(data.pay_url)
                             // 查询用户的支付结果
-                            $.post('/order/heck_pay/',params,function (data) {
-                                if (data.res ==3){
-                                    alert('支付成功');
-                                    // 重新杀心页面
+                            $.post('/order/check_pay/', params, function (data) {
+                                if (data.res == 3){
+                                    alert('支付成功')
+                                    // 重新刷新页面
                                     location.reload()
                                 }
                                 else{
                                     alert(data.errmsg)
                                 }
                             })
+                        }
+                        else{
+                            alert(data.errmsg)
                         }
                     })
                 }

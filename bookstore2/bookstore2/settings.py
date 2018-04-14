@@ -23,7 +23,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = 'h2853e22)a4g&x7*kdf6vp4!ng*lz4w3&x%)%e(ywf)r6bu3!8'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# DEBUG = True
+DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
@@ -115,8 +115,9 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR,'static')
+    os.path.join(BASE_DIR, 'static')
 ]
+
 
 TINTMCE_DEFAULT_CONFIG = {
     'theme':'advanced',
@@ -124,7 +125,7 @@ TINTMCE_DEFAULT_CONFIG = {
     'height':400,
 }
 
-MEDIA_ROOT = os.path.join(BASE_DIR,'static')
+MEDIA_ROOT = os.path.join(BASE_DIR, "static")
 
 CACHES = {
     "default":{
